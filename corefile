@@ -1,0 +1,9 @@
+. {
+  prometheus 127.0.0.1:9153
+  circuit 127.0.0.1:8080
+  forward . 1.1.1.1 {
+	except internal
+  }
+  debug
+  log
+}
