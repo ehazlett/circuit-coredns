@@ -43,7 +43,7 @@ func (c *Circuit) lookup(ctx context.Context, query string, qtype uint16) ([]dns
 	}
 
 	host := x[0]
-	domain := x[1]
+	network := x[1]
 
 	resp, err := c.client.GetContainerIPs(ctx, &api.GetContainerIPsRequest{
 		Container: host,
@@ -55,89 +55,21 @@ func (c *Circuit) lookup(ctx context.Context, query string, qtype uint16) ([]dns
 		return nil, err
 	}
 
-	// split domain to get network name
-	n := strings.SplitN(domain, ".", 2)
-	network := n[0]
-
+	records := []dns.RR{}
 	for _, cip := range resp.IPs {
 		if cip.Network == network {
-			return []dns.RR{
-				&dns.A{
-					Hdr: dns.RR_Header{
-						Name:   query,
-						Ttl:    0,
-						Class:  dns.ClassINET,
-						Rrtype: dns.TypeA,
-					},
-					A: net.ParseIP(cip.IP),
+			records = append(records, &dns.A{
+				Hdr: dns.RR_Header{
+					Name:   query,
+					Ttl:    0,
+					Class:  dns.ClassINET,
+					Rrtype: dns.TypeA,
 				},
-			}, nil
+				A: net.ParseIP(cip.IP),
+			},
+			)
 		}
 	}
 
-	return nil, nil
-
-	//resp, err := d.client.GetZone(ctx, &api.GetZoneRequest{
-	//	Name: domain,
-	//})
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	//zone := resp.Zone
-
-	//records := []dns.RR{}
-	//for _, r := range zone.Records {
-	//	if r.Name != host {
-	//		continue
-	//	}
-	//	var record dns.RR
-	//	hdr := dns.RR_Header{
-	//		Name:  query,
-	//		Ttl:   0,
-	//		Class: dns.ClassINET,
-	//	}
-	//	switch r.Type {
-	//	case v1.Record_A:
-	//		hdr.Rrtype = dns.TypeA
-	//		record = &dns.A{
-	//			Hdr: hdr,
-	//			A:   net.ParseIP(r.Value),
-	//		}
-	//		records = append(records, record)
-	//	case v1.Record_CNAME:
-	//		hdr.Rrtype = dns.TypeCNAME
-	//		record = &dns.CNAME{
-	//			Hdr:    hdr,
-	//			Target: r.Value + ".",
-	//		}
-	//		records = append(records, record)
-	//		// lookup corresponding A records for target
-	//		resolved, err := d.lookup(ctx, r.Value, dns.TypeA)
-	//		if err != nil {
-	//			return nil, err
-	//		}
-
-	//		for _, x := range resolved {
-	//			v, ok := x.(*dns.A)
-	//			if !ok {
-	//				continue
-	//			}
-	//			records = append(records, &dns.A{
-	//				Hdr: dns.RR_Header{
-	//					Name:   r.Value + ".",
-	//					Ttl:    0,
-	//					Class:  dns.ClassINET,
-	//					Rrtype: dns.TypeA,
-	//				},
-	//				A: v.A,
-	//			})
-	//		}
-	//	default:
-	//		log.Errorf("unsupported record type: %+v", r)
-	//		continue
-	//	}
-	//}
-
-	//return records, nil
+	return records, nil
 }
